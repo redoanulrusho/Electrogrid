@@ -9,18 +9,18 @@ return new class extends Migration
     public function up(): void
     {
         Schema::create('feeders', function (Blueprint $table) {
-            $table->id(); // Primary Key
+            $table->id();
             $table->string('feeder_name');
-            $table->string('substation_code');
+            $table->string('substation_code')->unique();
             $table->string('division');
             $table->string('district');
             $table->string('upazila');
             $table->decimal('max_capacity_mw', 8, 2);
-            $table->decimal('current_demand_mw', 8, 2);
+            $table->decimal('current_demand_mw', 8, 2)->default(0);
             $table->boolean('is_priority_zone')->default(false);
-            $table->string('status')->default('Active'); // Active, Maintenance, Outage
-            
-            // Foreign Key Constraint pointing to admins table
+            // MySQL real ENUM constraint for status
+            $table->enum('status', ['Active', 'Outage', 'Maintenance'])->default('Active');
+            // FK to admins — nullable in case admin not yet assigned
             $table->foreignId('admin_id')->nullable()->constrained('admins')->nullOnDelete();
             $table->timestamps();
         });
