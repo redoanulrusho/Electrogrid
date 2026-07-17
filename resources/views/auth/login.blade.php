@@ -41,9 +41,10 @@
             display: flex;
             align-items: center;
             justify-content: center;
-            padding: 1.5rem;
+            padding: 2.5rem 1.5rem;
             position: relative;
-            overflow: hidden;
+            overflow-x: hidden;
+            overflow-y: auto;
             background-image: 
                 linear-gradient(rgba(0, 245, 255, 0.015) 1px, transparent 1px),
                 linear-gradient(90deg, rgba(0, 245, 255, 0.015) 1px, transparent 1px);
@@ -175,8 +176,8 @@
 
         .input-group-hud {
             position: relative;
-            background-color: rgba(0,0,0,0.4);
-            border: 1px solid var(--border-neon-teal);
+            background-color: #1a2332;
+            border: 1px solid rgba(0, 245, 255, 0.35);
             border-radius: 4px;
             display: flex;
             align-items: center;
@@ -261,6 +262,18 @@
             margin-bottom: 1.5rem;
             text-shadow: 0 0 5px var(--neon-teal-glow);
         }
+
+        /* Dimmed placeholder — recedes so typed input text stands out clearly */
+        .form-control-hud::placeholder {
+            color: #445060;
+            font-weight: 400;
+            opacity: 1; /* override Firefox default */
+        }
+        /* Consistent focus glow on all inputs */
+        .input-group-hud:focus-within {
+            border-color: var(--neon-teal) !important;
+            box-shadow: 0 0 10px rgba(0, 245, 255, 0.18) !important;
+        }
     </style>
 </head>
 <body>
@@ -317,7 +330,7 @@
 
 
                 <!-- Unified Form Submitting to standard Laravel auth route -->
-                <form action="{{ route('login') }}" method="POST" autocomplete="off">
+                <form action="{{ route('login.submit') }}" method="POST" autocomplete="off">
                     @csrf
                     
                     <!-- Hidden input to track role selection mapping -->

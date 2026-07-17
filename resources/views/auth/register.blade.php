@@ -231,9 +231,9 @@
         }
 
         .form-control-hud, .form-select-hud {
-            background-color: rgba(0,0,0,0.3);
-            border: 1px solid var(--border-neon-teal);
-            color: #fff;
+            background-color: #1a2332;
+            border: 1px solid rgba(0, 245, 255, 0.35);
+            color: #e6edf3;
             padding: 0.75rem 1rem;
             border-radius: 4px;
             font-size: 0.92rem;
@@ -241,15 +241,17 @@
         }
 
         .form-control-hud:focus, .form-select-hud:focus {
-            background-color: rgba(0,0,0,0.4);
+            background-color: #1e293b;
             border-color: var(--neon-teal);
             color: #fff;
-            box-shadow: 0 0 10px rgba(0, 245, 255, 0.15);
+            box-shadow: 0 0 12px rgba(0, 245, 255, 0.18);
             outline: none;
         }
 
         .form-control-hud::placeholder {
-            color: #4a5462;
+            color: #3d4d5c;
+            font-weight: 400;
+            opacity: 1;
         }
 
         .form-control-hud.is-invalid {
@@ -465,10 +467,11 @@
                                 <label for="reg-feeder" class="form-label form-label-hud">Substation Grid Feeder Relay</label>
                                 <select name="feeder_id" id="reg-feeder" class="form-select form-select-hud w-100" required>
                                     <option value="" disabled selected>-- SECTOR NODES DETECTED --</option>
-                                    <option value="1" {{ old('feeder_id') == '1' ? 'selected' : '' }}>SUB-DH-04A // Gulshan Industrial Trunk 1</option>
-                                    <option value="2" {{ old('feeder_id') == '2' ? 'selected' : '' }}>SUB-DH-04B // Banani Residential Grid</option>
-                                    <option value="3" {{ old('feeder_id') == '3' ? 'selected' : '' }}>SUB-DH-04C // Tejgaon Commercial Trunk 2</option>
-                                    <option value="4" {{ old('feeder_id') == '4' ? 'selected' : '' }}>SUB-DH-04D // Badda Suburban Feeder</option>
+                                    @foreach($feeders as $feeder)
+                                        <option value="{{ $feeder->id }}" {{ old('feeder_id') == $feeder->id ? 'selected' : '' }}>
+                                            {{ $feeder->substation_code }} // {{ $feeder->feeder_name }}
+                                        </option>
+                                    @endforeach
                                 </select>
                             </div>
                         </div>
