@@ -24,6 +24,7 @@ class User extends Authenticatable
         'district',
         'upazila',
         'area',
+        'role',
         'password',
     ];
 

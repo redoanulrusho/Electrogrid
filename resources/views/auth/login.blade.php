@@ -20,9 +20,9 @@
     <!-- Custom CSS for Cyberpunk Gateway Portal -->
     <style>
         :root {
-            --bg-obsidian: #03060c;
-            --bg-slate: #0b0f19;
-            --card-glass: rgba(11, 17, 30, 0.85);
+            --bg-obsidian: #080f24;
+            --bg-slate: #0b1530;
+            --card-glass: rgba(11, 21, 42, 0.85);
             --border-neon-teal: rgba(0, 245, 255, 0.2);
             --neon-teal: #00f5ff;
             --neon-teal-glow: rgba(0, 245, 255, 0.35);
@@ -45,10 +45,6 @@
             position: relative;
             overflow-x: hidden;
             overflow-y: auto;
-            background-image: 
-                linear-gradient(rgba(0, 245, 255, 0.015) 1px, transparent 1px),
-                linear-gradient(90deg, rgba(0, 245, 255, 0.015) 1px, transparent 1px);
-            background-size: 40px 40px;
         }
 
         /* Ambient neon orb behind the login form */

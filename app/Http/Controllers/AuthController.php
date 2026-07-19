@@ -144,6 +144,7 @@ class AuthController extends Controller
             'district'       => $request->district,
             'upazila'        => $request->upazila,
             'area'           => $request->area,
+            'role'           => 'consumer',
         ]);
 
         return redirect()->route('login')
