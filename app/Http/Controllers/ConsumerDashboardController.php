@@ -6,6 +6,7 @@ use App\Models\Bill;
 use App\Models\GridNotification;
 use App\Models\OutageSchedule;
 use App\Models\Ticket;
+use App\Services\FeederInsightService;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -15,7 +16,7 @@ class ConsumerDashboardController extends Controller
     /**
      * Consumer dashboard — shows feeder status, outage schedule, notifications.
      */
-    public function index()
+    public function index(FeederInsightService $insights)
     {
         $user   = Auth::guard('web')->user();
         $feeder = $user->feeder;
@@ -70,6 +71,8 @@ class ConsumerDashboardController extends Controller
             ->whereIn('status', ['open', 'in_progress'])
             ->count();
 
+        $riskInsight = $feeder ? $insights->predictBlackoutRisk($feeder) : null;
+
         // Pusher config — read from config(), never env() in Blade
         $pusherKey     = config('broadcasting.connections.pusher.key');
         $pusherCluster = config('broadcasting.connections.pusher.options.cluster');
@@ -77,14 +80,14 @@ class ConsumerDashboardController extends Controller
         return view('consumer.dashboard', compact(
             'user', 'feeder', 'todayOutage', 'upcomingOutages',
             'outageHistory', 'notifications', 'latestBill', 'openTickets',
-            'pusherKey', 'pusherCluster'
+            'pusherKey', 'pusherCluster', 'riskInsight'
         ));
     }
 
     /**
      * Return current status JSON for fast real-time polling fallback.
      */
-    public function statusJson()
+    public function statusJson(FeederInsightService $insights)
     {
         $user   = Auth::guard('web')->user();
         $feeder = $user?->feeder;
@@ -103,6 +106,7 @@ class ConsumerDashboardController extends Controller
             'substation_code' => $feeder->substation_code,
             'status'          => $feeder->status,
             'has_outage'      => ($todayOutage || $feeder->status === 'Outage'),
+            'risk'            => $insights->predictBlackoutRisk($feeder),
         ]);
     }
 }

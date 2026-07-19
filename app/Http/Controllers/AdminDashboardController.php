@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Feeder;
 use App\Models\Ticket;
 use App\Models\User;
+use App\Services\FeederInsightService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 
@@ -13,9 +14,9 @@ class AdminDashboardController extends Controller
     /**
      * Main admin dashboard — passes live DB stats, feeders, and map config to the view.
      */
-    public function index()
+    public function index(FeederInsightService $insights)
     {
-        $feeders = Feeder::with('users')->orderBy('substation_code')->get();
+        $feeders = Feeder::with('users')->withCount('tickets')->orderBy('substation_code')->get();
 
         $stats = [
             'feeder_count'    => $feeders->count(),
@@ -41,9 +42,13 @@ class AdminDashboardController extends Controller
         $pusherKey     = config('broadcasting.connections.pusher.key');
         $pusherCluster = config('broadcasting.connections.pusher.options.cluster');
 
+        $riskByFeeder = $feeders->mapWithKeys(function (Feeder $feeder) use ($insights) {
+            return [$feeder->id => $insights->predictBlackoutRisk($feeder)];
+        });
+
         return view('admin.dashboard', compact(
             'feeders', 'stats',
-            'mapboxToken', 'pusherKey', 'pusherCluster'
+            'mapboxToken', 'pusherKey', 'pusherCluster', 'riskByFeeder'
         ));
     }
 

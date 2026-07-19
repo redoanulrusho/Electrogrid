@@ -121,6 +121,63 @@
             </div>
             @endif
 
+            {{-- Blackout risk prediction --}}
+            {{-- Blackout risk prediction --}}
+            @if($riskInsight)
+            @php
+                $riskColor = $riskInsight['level'] === 'High'
+                    ? 'var(--warning-crimson)'
+                    : ($riskInsight['level'] === 'Medium' ? 'var(--electric-amber)' : 'var(--grid-green)');
+            @endphp
+            <div class="cyber-card mb-4" style="border-color:rgba(0,245,255,0.28);">
+                <div class="cyber-card-header">
+                    <h6 class="tech-font text-white fw-bold m-0">
+                        <i class="bi bi-cpu-fill me-2 text-info"></i>Blackout Prediction Engine
+                    </h6>
+                </div>
+                <div class="p-3">
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <span class="text-secondary" style="font-size:0.78rem;">Risk Level (<30 Low | 30-49 Med | >=50 High)</span>
+                        <span id="risk-level-pill" class="badge tech-font" style="background:rgba(0,0,0,0.28);border:1px solid {{ $riskColor }};color:{{ $riskColor }};font-size:0.66rem;">{{ strtoupper($riskInsight['level']) }}</span>
+                    </div>
+                    <div class="d-flex justify-content-between align-items-center mb-1">
+                        <span class="text-secondary" style="font-size:0.78rem;">Live Risk Score (0-100)</span>
+                        <span id="risk-score-value" class="tech-font fw-bold" style="color:{{ $riskColor }};">{{ $riskInsight['score'] }}</span>
+                    </div>
+                    <div class="progress mb-3" style="height:7px;background:rgba(255,255,255,0.05);">
+                        <div id="risk-score-bar" class="progress-bar" style="width:{{ $riskInsight['score'] }}%;background:{{ $riskColor }};"></div>
+                    </div>
+
+                    <div class="row g-2" style="font-size:0.74rem;">
+                        <div class="col-3">
+                            <div class="p-2 rounded" style="background:rgba(0,0,0,0.22);border:1px solid var(--border-neon-teal);">
+                                <div class="text-secondary">Cutoff Count</div>
+                                <div class="text-white fw-semibold" id="risk-cutoff-count">{{ $riskInsight['cutoff_count'] }}</div>
+                            </div>
+                        </div>
+                        <div class="col-3">
+                            <div class="p-2 rounded" style="background:rgba(0,0,0,0.22);border:1px solid var(--border-neon-teal);">
+                                <div class="text-secondary">Load Ratio</div>
+                                <div class="text-white fw-semibold" id="risk-load-ratio">{{ $riskInsight['load_ratio'] }}%</div>
+                            </div>
+                        </div>
+                        <div class="col-3">
+                            <div class="p-2 rounded" style="background:rgba(0,0,0,0.22);border:1px solid var(--border-neon-teal);">
+                                <div class="text-secondary">Confidence</div>
+                                <div class="text-white fw-semibold" id="risk-confidence">{{ $riskInsight['confidence'] }}%</div>
+                            </div>
+                        </div>
+                        <div class="col-3">
+                            <div class="p-2 rounded" style="background:rgba(0,0,0,0.22);border:1px solid var(--border-neon-teal);">
+                                <div class="text-secondary">Open Tickets</div>
+                                <div class="text-white fw-semibold" id="risk-open-tickets">{{ $riskInsight['open_tickets'] }}</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            @endif
+
             {{-- Outage history --}}
             @if($outageHistory->count() > 0)
             <div class="cyber-card mb-4">
@@ -266,6 +323,56 @@
         }
     }
 
+    function applyRiskUI(risk) {
+        if (!risk) return;
+
+        const score = Number(risk.score || 0);
+        const level = String(risk.level || 'Low');
+        const color = level === 'High'
+            ? 'var(--warning-crimson)'
+            : (level === 'Medium' ? 'var(--electric-amber)' : 'var(--grid-green)');
+
+        const scoreValue = document.getElementById('risk-score-value');
+        const scoreBar   = document.getElementById('risk-score-bar');
+        const levelPill  = document.getElementById('risk-level-pill');
+
+        if (scoreValue) {
+            scoreValue.textContent = score;
+            scoreValue.style.color = color;
+        }
+
+        if (scoreBar) {
+            scoreBar.style.width = score + '%';
+            scoreBar.style.background = color;
+        }
+
+        if (levelPill) {
+            levelPill.textContent = level.toUpperCase();
+            levelPill.style.borderColor = color;
+            levelPill.style.color = color;
+        }
+
+        const cutoffCountEl = document.getElementById('risk-cutoff-count');
+        if (cutoffCountEl && risk.cutoff_count !== undefined) {
+            cutoffCountEl.textContent = risk.cutoff_count;
+        }
+
+        const loadRatioEl = document.getElementById('risk-load-ratio');
+        if (loadRatioEl && risk.load_ratio !== undefined) {
+            loadRatioEl.textContent = risk.load_ratio + '%';
+        }
+
+        const confEl = document.getElementById('risk-confidence');
+        if (confEl && risk.confidence !== undefined) {
+            confEl.textContent = risk.confidence + '%';
+        }
+
+        const openTicketsEl = document.getElementById('risk-open-tickets');
+        if (openTicketsEl && risk.open_tickets !== undefined) {
+            openTicketsEl.textContent = risk.open_tickets;
+        }
+    }
+
     if (FEEDER_ID) {
         Echo.channel('feeder.' + FEEDER_ID)
             .listen('.FeederStatusChanged', function (data) {
@@ -281,6 +388,7 @@
             .then(data => {
                 if (data && data.status) {
                     updateFeederStatusUI(data.status, data.has_outage);
+                    applyRiskUI(data.risk);
                 }
             })
             .catch(() => {});

@@ -192,19 +192,33 @@
                                             <span class="badge tech-font ms-2" style="background:rgba(100,100,100,0.1);border:1px solid rgba(100,100,100,0.3);color:#768390;font-size:0.6rem;">STANDARD</span>
                                         @endif
                                     </div>
-                                    {{-- Live status pill --}}
-                                    <span class="badge tech-font d-flex align-items-center gap-1 px-2 py-1"
-                                          style="font-size:0.65rem;
-                                          @if($feeder->status === 'Active')
-                                              background:rgba(0,230,118,0.08);border:1px solid rgba(0,230,118,0.3);color:var(--grid-green);
-                                          @elseif($feeder->status === 'Outage')
-                                              background:rgba(255,42,84,0.08);border:1px solid rgba(255,42,84,0.3);color:var(--warning-crimson);
-                                          @else
-                                              background:rgba(255,159,28,0.08);border:1px solid rgba(255,159,28,0.3);color:var(--electric-amber);
-                                          @endif">
-                                        <span style="width:6px;height:6px;border-radius:50%;display:inline-block;background:currentColor;"></span>
-                                        {{ strtoupper($feeder->status) }}
-                                    </span>
+                                    <div class="d-flex flex-column align-items-end gap-1">
+                                        {{-- Live status pill --}}
+                                        <span class="badge tech-font d-flex align-items-center gap-1 px-2 py-1"
+                                              style="font-size:0.65rem;
+                                              @if($feeder->status === 'Active')
+                                                  background:rgba(0,230,118,0.08);border:1px solid rgba(0,230,118,0.3);color:var(--grid-green);
+                                              @elseif($feeder->status === 'Outage')
+                                                  background:rgba(255,42,84,0.08);border:1px solid rgba(255,42,84,0.3);color:var(--warning-crimson);
+                                              @else
+                                                  background:rgba(255,159,28,0.08);border:1px solid rgba(255,159,28,0.3);color:var(--electric-amber);
+                                              @endif">
+                                            <span style="width:6px;height:6px;border-radius:50%;display:inline-block;background:currentColor;"></span>
+                                            {{ strtoupper($feeder->status) }}
+                                        </span>
+                                        @php
+                                            $risk = $riskByFeeder[$feeder->id] ?? null;
+                                            $riskColor = ($risk['level'] ?? 'Low') === 'High'
+                                                ? 'var(--warning-crimson)'
+                                                : ((($risk['level'] ?? 'Low') === 'Medium') ? 'var(--electric-amber)' : 'var(--grid-green)');
+                                        @endphp
+                                        @if($risk)
+                                        <span class="badge tech-font px-2 py-1"
+                                              style="font-size:0.6rem;background:rgba(0,0,0,0.3);border:1px solid {{ $riskColor }};color:{{ $riskColor }};">
+                                            RISK {{ strtoupper($risk['level']) }} · {{ $risk['score'] }}
+                                        </span>
+                                        @endif
+                                    </div>
                                 </div>
 
                                 {{-- Feeder name + location --}}
@@ -558,8 +572,34 @@
     mapboxgl.accessToken = @json($mapboxToken);
 
     const FEEDERS        = @json($feeders);
+    const RISK_BY_FEEDER = @json($riskByFeeder);
     const statusColors   = { Active: '#00e676', Outage: '#ff2a54', Maintenance: '#ff9f1c' };
     const feederMarkers  = {}; // keyed by feeder id for live updates
+
+    function getFeederRiskScore(feederId) {
+        const r = RISK_BY_FEEDER[feederId];
+        return r ? Number(r.score || 0) : 0;
+    }
+
+    function syncStressPointsMap() {
+        if (!map.getSource('stress-points')) return;
+        const features = FEEDERS
+            .filter(f => f.latitude && f.longitude)
+            .map(f => ({
+                type: 'Feature',
+                properties: {
+                    feeder_id: f.id,
+                    status: f.status,
+                    status_color: statusColors[f.status] || '#00e676',
+                    risk_score: getFeederRiskScore(f.id),
+                },
+                geometry: {
+                    type: 'Point',
+                    coordinates: [parseFloat(f.longitude), parseFloat(f.latitude)],
+                }
+            }));
+        map.getSource('stress-points').setData({ type: 'FeatureCollection', features: features });
+    }
 
     const map = new mapboxgl.Map({
         container: 'grid-map',
@@ -574,6 +614,7 @@
         FEEDERS.forEach(function (f) {
             if (!f.latitude || !f.longitude) return;
             const color = statusColors[f.status] || '#aaaaaa';
+            const risk = getFeederRiskScore(f.id);
 
             const el = document.createElement('div');
             el.style.cssText = [
@@ -590,9 +631,10 @@
                     '<div style="font-family:\"Rajdhani\",sans-serif;background:#0e1525;',
                     'color:#c9d1d9;padding:12px 14px;border-radius:6px;min-width:190px;">',
                     '<div style="color:#00f5ff;font-weight:700;font-size:1rem;margin-bottom:4px;">' + f.substation_code + '</div>',
-                    '<div style="font-size:0.88rem;margin-bottom:6px;">' + f.feeder_name + '</div>',
+                    '<div style="font-size:0.88rem;margin-bottom:4px;">' + f.feeder_name + '</div>',
                     '<div style="font-size:0.78rem;color:#768390;">Demand: <span style="color:#c9d1d9;">' + f.current_demand_mw + ' MW</span></div>',
-                    '<div style="font-size:0.78rem;margin-top:4px;">Status: <span style="color:' + color + ';font-weight:700;">' + f.status + '</span></div>',
+                    '<div style="font-size:0.78rem;margin-top:2px;">Status: <span style="color:' + color + ';font-weight:700;">' + f.status + '</span></div>',
+                    '<div style="font-size:0.78rem;margin-top:2px;color:#ff9f1c;">Risk Score: <strong style="color:#fff;">' + risk + '</strong> / 100</div>',
                     '</div>'
                 ].join(''));
 
@@ -640,6 +682,89 @@
                     }
                 });
             });
+
+        // ─ Stress pulse source + layers ───────────────────────────
+        // Main core circle depends on STATUS (Active green, Maintenance yellow, Cutoff red)
+        // Sub-circle outer ring depends on RISK SCORE (Medium bigger, High large)
+        const stressFeatures = FEEDERS
+            .filter(f => f.latitude && f.longitude)
+            .map(f => ({
+                type: 'Feature',
+                properties: {
+                    feeder_id: f.id,
+                    status: f.status,
+                    status_color: statusColors[f.status] || '#00e676',
+                    risk_score: getFeederRiskScore(f.id),
+                },
+                geometry: {
+                    type: 'Point',
+                    coordinates: [parseFloat(f.longitude), parseFloat(f.latitude)],
+                }
+            }));
+
+        map.addSource('stress-points', {
+            type: 'geojson',
+            data: { type: 'FeatureCollection', features: stressFeatures }
+        });
+
+        // Main circle (depends on status: Active green, Maintenance yellow, Cutoff red)
+        map.addLayer({
+            id: 'stress-core',
+            type: 'circle',
+            source: 'stress-points',
+            paint: {
+                'circle-color': ['get', 'status_color'],
+                'circle-opacity': 0.65,
+                'circle-radius': 10
+            }
+        });
+
+        // Sub-circle around main circle (Feature 3: depends on Risk Score — Medium bigger, High large)
+        map.addLayer({
+            id: 'stress-pulse',
+            type: 'circle',
+            source: 'stress-points',
+            paint: {
+                'circle-color': [
+                    'interpolate', ['linear'], ['get', 'risk_score'],
+                    0,   '#00e676', // Low (<30)
+                    30,  '#ff9f1c', // Medium (30-49)
+                    50,  '#ff2a54'  // High (>=50)
+                ],
+                'circle-opacity': [
+                    'interpolate', ['linear'], ['get', 'risk_score'],
+                    0,  0.12,
+                    30, 0.35,
+                    50, 0.60
+                ],
+                'circle-radius': [
+                    'interpolate', ['linear'], ['get', 'risk_score'],
+                    0,  14,
+                    30, 34, // Medium risk = medium bigger sub-circle
+                    50, 68  // High risk = large sub-circle
+                ],
+                'circle-blur': 0.45
+            }
+        });
+
+        // Animate sub-circle pulse radius based on risk score
+        let pulseTick = 0;
+        const animateStressPulse = () => {
+            if (!map.getLayer('stress-pulse')) return;
+            pulseTick += 0.07;
+            const wave = 8 + Math.sin(pulseTick) * 7;
+
+            map.setPaintProperty('stress-pulse', 'circle-radius', [
+                'interpolate', ['linear'], ['get', 'risk_score'],
+                0,  14 + (wave * 0.3),
+                30, 32 + (wave * 0.8), // Medium risk = medium bigger pulsing ring
+                50, 62 + (wave * 2.8)  // High risk = large pulsing ring!
+            ]);
+
+            requestAnimationFrame(animateStressPulse);
+        };
+
+        requestAnimationFrame(animateStressPulse);
     });
 
     // ── Heatmap toggle button ──────────────────────────────────────
@@ -653,7 +778,6 @@
     });
 
     // ── Laravel Echo: live marker color update on FeederStatusChanged ─────
-    // All config from AdminDashboardController — never env() in Blade
     window.AdminEcho = new Echo({
         broadcaster: 'pusher',
         key:         @json($pusherKey),
@@ -665,10 +789,29 @@
         AdminEcho.channel('feeder.' + f.id)
             .listen('.FeederStatusChanged', function (data) {
                 const entry = feederMarkers[data.feeder_id];
-                if (!entry) return;
-                const newColor = statusColors[data.status] || '#aaaaaa';
-                entry.el.style.background = newColor;
-                entry.el.style.boxShadow  = '0 0 12px ' + newColor;
+                if (entry) {
+                    const newColor = statusColors[data.status] || '#aaaaaa';
+                    entry.el.style.background = newColor;
+                    entry.el.style.boxShadow  = '0 0 12px ' + newColor;
+                }
+
+                // Update feeder record & increase risk score dynamically on cutoff
+                const item = FEEDERS.find(x => Number(x.id) === Number(data.feeder_id));
+                if (item) {
+                    item.status = data.status;
+                }
+
+                if (!RISK_BY_FEEDER[data.feeder_id]) {
+                    RISK_BY_FEEDER[data.feeder_id] = { score: 0, level: 'Low' };
+                }
+                const currentScore = Number(RISK_BY_FEEDER[data.feeder_id].score || 0);
+                if (data.status === 'Outage' || data.status === 'Maintenance') {
+                    const newScore = Math.min(100, currentScore + 10);
+                    RISK_BY_FEEDER[data.feeder_id].score = newScore;
+                    RISK_BY_FEEDER[data.feeder_id].level = newScore >= 50 ? 'High' : (newScore >= 30 ? 'Medium' : 'Low');
+                }
+
+                syncStressPointsMap();
             });
     });
 </script>
