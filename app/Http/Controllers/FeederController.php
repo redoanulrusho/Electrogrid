@@ -26,16 +26,34 @@ class FeederController extends Controller
         $oldStatus = $feeder->status;
         $feeder->update(['status' => $request->status]);
 
-        // If changed to Outage — notify all consumers on this feeder
-        if ($request->status === 'Outage' && $oldStatus !== 'Outage') {
+        // If changed to Outage or Maintenance — record cutoff event for 7-day memory rule & notify consumers
+        if (in_array($request->status, ['Outage', 'Maintenance']) && !in_array($oldStatus, ['Outage', 'Maintenance'])) {
+            $adminId = Auth::guard('admin')->id() ?? $feeder->admin_id ?? 1;
+
+            OutageSchedule::create([
+                'feeder_id'  => $feeder->id,
+                'created_by' => $adminId,
+                'start_time' => now(),
+                'end_time'   => now()->addHours(2),
+                'reason'     => "Emergency {$request->status} by Grid Operator",
+                'status'     => 'active',
+            ]);
+
             $this->notifyConsumers(
                 $feeder,
-                "⚡ Emergency Cutoff: Your feeder ({$feeder->substation_code} — {$feeder->feeder_name}) has been force-disconnected by the grid operator."
+                "⚡ Emergency {$request->status}: Your feeder ({$feeder->substation_code} — {$feeder->feeder_name}) has been force-disconnected by the grid operator."
             );
         }
 
-        // If restored to Active — notify consumers
+        // If restored to Active — mark active outage schedules as completed & notify consumers
         if ($request->status === 'Active' && $oldStatus !== 'Active') {
+            OutageSchedule::where('feeder_id', $feeder->id)
+                ->where('status', 'active')
+                ->update([
+                    'status'   => 'completed',
+                    'end_time' => now(),
+                ]);
+
             $this->notifyConsumers(
                 $feeder,
                 "✅ Power Restored: Your feeder ({$feeder->substation_code} — {$feeder->feeder_name}) relay has been restored to Active."

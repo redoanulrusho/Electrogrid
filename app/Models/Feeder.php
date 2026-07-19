@@ -55,12 +55,37 @@ class Feeder extends Model
     }
 
     /**
+     * Tickets raised against this feeder.
+     */
+    public function tickets()
+    {
+        return $this->hasMany(Ticket::class, 'feeder_id');
+    }
+
+    /**
      * Load percentage helper.
      */
     public function getLoadPercentAttribute(): float
     {
         if ($this->max_capacity_mw <= 0) return 0;
         return round(($this->current_demand_mw / $this->max_capacity_mw) * 100, 1);
+    }
+
+    /**
+     * Stress index from 0..1 used by animated map overlays.
+     */
+    public function getStressIndexAttribute(): float
+    {
+        if ($this->status === 'Outage') {
+            return 1.0;
+        }
+
+        if ($this->max_capacity_mw <= 0) {
+            return 0;
+        }
+
+        $ratio = $this->current_demand_mw / $this->max_capacity_mw;
+        return round(min(1, max(0, $ratio)), 3);
     }
 
     /**
