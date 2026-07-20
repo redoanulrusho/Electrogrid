@@ -14,7 +14,7 @@ Route::get('/', fn() => redirect()->route('login'));
 // ─── Authentication Routes ─────────────────────────────────────────────────
 Route::get('/login',    [AuthController::class, 'showLoginForm'])->name('login');
 Route::post('/login',   [AuthController::class, 'login'])->name('login.submit');
-Route::post('/logout',  [AuthController::class, 'logout'])->name('logout');
+Route::match(['get', 'post'], '/logout', [AuthController::class, 'logout'])->name('logout');
 
 Route::get('/register',  [AuthController::class, 'showRegisterForm'])->name('register');
 Route::post('/register', [AuthController::class, 'register'])->name('register.submit');
@@ -29,6 +29,7 @@ Route::middleware('admin.auth')->prefix('admin')->name('admin.')->group(function
     Route::post('/feeders/{id}/status',          [FeederController::class, 'updateStatus'])->name('feeders.status');
     Route::get('/feeders/{id}/telemetry',        [FeederController::class, 'telemetry'])->name('feeders.telemetry');
     Route::post('/feeders/{id}/schedule-outage', [FeederController::class, 'scheduleOutage'])->name('feeders.schedule-outage');
+    Route::post('/feeders/{id}/upload-bill',     [FeederController::class, 'uploadBill'])->name('feeders.upload-bill');
     Route::get('/feeders/report',                [FeederController::class, 'report'])->name('feeders.report');
 
     // Tickets management

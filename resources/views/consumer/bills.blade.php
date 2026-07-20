@@ -59,6 +59,13 @@
                 <div class="text-secondary" style="font-size:0.72rem;">UNITS CONSUMED</div>
                 <div class="text-warning fw-bold fs-4 tech-font">{{ $latestUnpaid->units_consumed }} kWh</div>
                 <div class="text-secondary" style="font-size:0.72rem;">@ BDT {{ $latestUnpaid->rate_applied }}/unit</div>
+                @if($latestUnpaid->document_path)
+                <div class="mt-2">
+                    <a href="{{ asset($latestUnpaid->document_path) }}" target="_blank" class="btn btn-sm btn-outline-info tech-font py-1" style="font-size:0.75rem;">
+                        <i class="bi bi-file-earmark-pdf me-1"></i>View Attached Bill Document
+                    </a>
+                </div>
+                @endif
             </div>
         </div>
     </div>
@@ -83,6 +90,7 @@
                             <th class="text-end">Amount (BDT)</th>
                             <th class="text-center">Due Date</th>
                             <th class="text-center">Status</th>
+                            <th class="text-center">Document</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -100,6 +108,15 @@
                                     <span class="badge tech-font" style="background:rgba(0,230,118,0.1);border:1px solid rgba(0,230,118,0.3);color:var(--grid-green);font-size:0.65rem;">PAID</span>
                                 @else
                                     <span class="badge tech-font" style="background:rgba(255,42,84,0.1);border:1px solid rgba(255,42,84,0.3);color:var(--warning-crimson);font-size:0.65rem;">UNPAID</span>
+                                @endif
+                            </td>
+                            <td class="text-center">
+                                @if($bill->document_path)
+                                    <a href="{{ asset($bill->document_path) }}" target="_blank" class="btn btn-sm btn-cyber-outline tech-font py-0 px-2" style="font-size:0.72rem;border-color:var(--border-neon-teal);">
+                                        <i class="bi bi-file-earmark-text text-info me-1"></i>View
+                                    </a>
+                                @else
+                                    <span class="text-secondary" style="font-size:0.7rem;">—</span>
                                 @endif
                             </td>
                         </tr>

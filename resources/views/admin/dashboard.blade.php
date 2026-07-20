@@ -279,6 +279,12 @@
                                             onclick="openScheduleModal({{ $feeder->id }}, '{{ $feeder->substation_code }}')">
                                         <i class="bi bi-calendar-range me-1 text-warning"></i>Schedule
                                     </button>
+
+                                    {{-- Provide Bill --}}
+                                    <button class="btn btn-sm btn-cyber-outline tech-font flex-grow-1"
+                                            onclick="openBillModal({{ $feeder->id }}, '{{ $feeder->substation_code }}', {{ json_encode($feeder->users) }})">
+                                        <i class="bi bi-file-earmark-arrow-up me-1 text-success"></i>Provide Bill
+                                    </button>
                                 </div>
 
                                 {{-- Status change buttons --}}
@@ -466,6 +472,59 @@
     </div>
 </div>
 
+{{-- Modal: Provide Bill (Upload PDF / PNG / JPG File) --}}
+<div class="modal fade" id="billUploadModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content cyber-card" style="background:#0e1525;border:1px solid var(--border-neon-teal);">
+            <div class="cyber-card-header d-flex justify-content-between align-items-center p-3" style="border-bottom:1px solid rgba(0,245,255,0.2);">
+                <h6 class="tech-font text-white m-0 fw-bold">
+                    <i class="bi bi-file-earmark-arrow-up me-2 text-success"></i>Upload Billing Document (<span id="bill-feeder-code">--</span>)
+                </h6>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <form id="bill-upload-form" method="POST" action="" enctype="multipart/form-data">
+                @csrf
+                <div class="modal-body p-3">
+                    <div class="mb-3">
+                        <label class="form-label text-secondary tech-font" style="font-size:0.78rem;">Target Consumer Node</label>
+                        <select class="form-select bg-dark text-white border-secondary tech-font" name="user_id" id="bill-user-select" required>
+                            <option value="all">🌐 All Consumers on this Feeder</option>
+                        </select>
+                    </div>
+
+                    <div class="row g-2 mb-3">
+                        <div class="col-6">
+                            <label class="form-label text-secondary tech-font" style="font-size:0.78rem;">Billing Month</label>
+                            <input type="date" class="form-control bg-dark text-white border-secondary tech-font" name="month" value="{{ date('Y-m-01') }}" required>
+                        </div>
+                        <div class="col-6">
+                            <label class="form-label text-secondary tech-font" style="font-size:0.78rem;">Units Consumed (kWh)</label>
+                            <input type="number" step="0.01" class="form-control bg-dark text-white border-secondary tech-font" name="units_consumed" placeholder="e.g. 250" required>
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label text-secondary tech-font" style="font-size:0.78rem;">Due Date</label>
+                        <input type="date" class="form-control bg-dark text-white border-secondary tech-font" name="due_date" value="{{ date('Y-m-15', strtotime('+1 month')) }}" required>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label text-secondary tech-font" style="font-size:0.78rem;">Bill Document File (.pdf, .png, .jpg)</label>
+                        <input type="file" class="form-control bg-dark text-white border-secondary tech-font" name="bill_file" accept=".pdf,.png,.jpg,.jpeg" required>
+                        <div class="form-text text-secondary" style="font-size:0.7rem;">Supported formats: PDF document or PNG/JPG image scan (max 10MB).</div>
+                    </div>
+                </div>
+                <div class="modal-footer p-3" style="border-top:1px solid rgba(0,245,255,0.2);">
+                    <button type="button" class="btn btn-outline-secondary tech-font btn-sm" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-info text-dark fw-bold tech-font btn-sm">
+                        <i class="bi bi-cloud-upload me-1"></i>Publish & Attach Bill
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
 @endsection
 
 @section('scripts')
@@ -566,6 +625,23 @@
         document.getElementById('sched-code').textContent = code;
         document.getElementById('scheduleForm').action = `/admin/feeders/${feederId}/schedule-outage`;
         new bootstrap.Modal(document.getElementById('scheduleModal')).show();
+    }
+
+    // ── Provide Bill Upload Modal ──────────────────────────────────────
+    function openBillModal(feederId, code, users) {
+        document.getElementById('bill-feeder-code').textContent = code;
+        document.getElementById('bill-upload-form').action = `/admin/feeders/${feederId}/upload-bill`;
+
+        const userSelect = document.getElementById('bill-user-select');
+        userSelect.innerHTML = '<option value="all">🌐 All Consumers on this Feeder</option>';
+
+        if (Array.isArray(users)) {
+            users.forEach(u => {
+                userSelect.innerHTML += `<option value="${u.id}">👤 ${u.name} (${u.meter_number || 'Meter N/A'})</option>`;
+            });
+        }
+
+        new bootstrap.Modal(document.getElementById('billUploadModal')).show();
     }
 
     // ── Mapbox Grid Map ────────────────────────────────────────────
