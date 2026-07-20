@@ -3,12 +3,14 @@
 namespace App\Http\Controllers;
 
 use App\Events\FeederStatusChanged;
+use App\Models\Bill;
 use App\Models\Feeder;
 use App\Models\GridNotification;
 use App\Models\OutageSchedule;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Str;
 
 class FeederController extends Controller
 {
@@ -197,5 +199,62 @@ class FeederController extends Controller
         if (!empty($notifications)) {
             GridNotification::insert($notifications);
         }
+    }
+
+    /**
+     * Upload billing document (PDF / PNG / JPG) for a consumer or all consumers on a feeder.
+     */
+    public function uploadBill(Request $request, int $id)
+    {
+        $request->validate([
+            'user_id'        => 'required',
+            'month'          => 'required|date',
+            'units_consumed' => 'required|numeric|min:0',
+            'due_date'       => 'required|date',
+            'bill_file'      => 'required|file|mimes:pdf,png,jpg,jpeg|max:10240',
+        ]);
+
+        $feeder = Feeder::findOrFail($id);
+
+        // Upload document file to public/uploads/bills
+        $file = $request->file('bill_file');
+        $filename = 'bill_' . time() . '_' . Str::random(6) . '.' . $file->getClientOriginalExtension();
+        $file->move(public_path('uploads/bills'), $filename);
+        $documentPath = 'uploads/bills/' . $filename;
+
+        $targetUsers = $request->user_id === 'all'
+            ? User::where('feeder_id', $feeder->id)->get()
+            : User::where('id', $request->user_id)->get();
+
+        if ($targetUsers->isEmpty()) {
+            return back()->with('error', 'No consumer nodes found on this feeder.');
+        }
+
+        $monthDate = \Carbon\Carbon::parse($request->month)->firstOfMonth()->format('Y-m-d');
+        $dueDate   = \Carbon\Carbon::parse($request->due_date)->format('Y-m-d');
+        $units     = (float) $request->units_consumed;
+
+        foreach ($targetUsers as $user) {
+            $calculation = Bill::calculateAmount($units, $user->consumer_class ?? 'Residential');
+
+            Bill::create([
+                'user_id'        => $user->id,
+                'month'          => $monthDate,
+                'units_consumed' => $units,
+                'rate_applied'   => $calculation['rate'],
+                'amount'         => $calculation['amount'],
+                'paid_status'    => 'unpaid',
+                'due_date'       => $dueDate,
+                'document_path'  => $documentPath,
+            ]);
+
+            GridNotification::create([
+                'user_id' => $user->id,
+                'message' => "📄 Billing Statement Uploaded: Official bill for " . \Carbon\Carbon::parse($monthDate)->format('F Y') . " has been published with attached document.",
+            ]);
+        }
+
+        $count = $targetUsers->count();
+        return back()->with('success', "Bill document uploaded & attached to {$count} consumer(s) on {$feeder->substation_code}.");
     }
 }
