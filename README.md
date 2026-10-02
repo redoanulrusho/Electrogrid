@@ -77,6 +77,7 @@ The application will be accessible at http://127.0.0.1:8000.
 
 ## Project Structure
 
+```text
 app/
 ├── Events/              # Event classes handling Pusher broadcasts (e.g., FeederStatusChanged)
 ├── Http/
@@ -91,9 +92,7 @@ resources/
 routes/
 ├── web.php              # Authenticated user routes and dashboards
 └── api.php              # Status update hooks and simulation payloads
-
----
-
+```
 ## License
 
 This project was built for practical engineering demonstrations. Licensed under the MIT License.
