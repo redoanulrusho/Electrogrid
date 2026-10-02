@@ -93,6 +93,3 @@ routes/
 ├── web.php              # Authenticated user routes and dashboards
 └── api.php              # Status update hooks and simulation payloads
 ```
-## License
-
-This project was built for practical engineering demonstrations. Licensed under the MIT License.
